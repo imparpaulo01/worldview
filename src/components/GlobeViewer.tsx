@@ -11,29 +11,40 @@ import { configureCesium, loadGoogleTileset } from "@/lib/cesium-config";
 import { DEFAULT_CAMERA } from "@/lib/constants";
 import { useFlightData } from "@/hooks/useFlightData";
 import { useSatelliteData } from "@/hooks/useSatelliteData";
+import { useEarthquakeData } from "@/hooks/useEarthquakeData";
+import { useAISData } from "@/hooks/useAISData";
+import { useFireData } from "@/hooks/useFireData";
+import { useWeatherData } from "@/hooks/useWeatherData";
 import { useFilterMode } from "@/hooks/useFilterMode";
 import { FilterPipeline } from "@/filters/FilterPipeline";
 import { FlightLayer } from "@/layers/FlightLayer";
 import { SatelliteLayer } from "@/layers/SatelliteLayer";
 import { GridOverlay } from "@/layers/GridOverlay";
+import { EarthquakeLayer } from "@/layers/EarthquakeLayer";
+import { ShipLayer } from "@/layers/ShipLayer";
+import { FireLayer } from "@/layers/FireLayer";
+import { WeatherLayer } from "@/layers/WeatherLayer";
 import { Crosshair } from "@/components/hud/Crosshair";
 import { DataReadout } from "@/components/hud/DataReadout";
 import { StatusBar } from "@/components/hud/StatusBar";
 import { LayerPanel } from "@/components/panels/LayerPanel";
+import type { LayerState } from "@/components/panels/LayerPanel";
 import { FilterPanel } from "@/components/panels/FilterPanel";
 import { SearchPanel } from "@/components/panels/SearchPanel";
 import { FlightDetailPanel } from "@/components/panels/FlightDetailPanel";
 import { SatDetailPanel } from "@/components/panels/SatDetailPanel";
+import { QuakeDetailPanel } from "@/components/panels/QuakeDetailPanel";
+import { ShipDetailPanel } from "@/components/panels/ShipDetailPanel";
+import { FireDetailPanel } from "@/components/panels/FireDetailPanel";
+import { WeatherDetailPanel } from "@/components/panels/WeatherDetailPanel";
 import type { Aircraft } from "@/types/opensky";
 import type { Satellite } from "@/types/celestrak";
+import type { Earthquake } from "@/types/usgs";
+import type { Vessel } from "@/types/ais";
+import type { FireHotspot } from "@/types/firms";
+import type { WeatherAlert } from "@/types/nws";
 
 configureCesium();
-
-interface LayerState {
-  flights: boolean;
-  satellites: boolean;
-  grid: boolean;
-}
 
 export function GlobeViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,14 +55,36 @@ export function GlobeViewer() {
     flights: true,
     satellites: true,
     grid: false,
+    earthquakes: false,
+    ships: false,
+    fires: false,
+    weather: false,
   });
 
   const { mode: filterMode, setMode: setFilterMode } = useFilterMode();
   const flightData = useFlightData(layers.flights);
   const satData = useSatelliteData(layers.satellites);
+  const quakeData = useEarthquakeData(layers.earthquakes);
+  const aisData = useAISData(layers.ships);
+  const fireData = useFireData(layers.fires);
+  const weatherData = useWeatherData(layers.weather);
 
   const [selectedFlight, setSelectedFlight] = useState<Aircraft | null>(null);
   const [selectedSat, setSelectedSat] = useState<Satellite | null>(null);
+  const [selectedQuake, setSelectedQuake] = useState<Earthquake | null>(null);
+  const [selectedShip, setSelectedShip] = useState<Vessel | null>(null);
+  const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
+  const [selectedAlert, setSelectedAlert] = useState<WeatherAlert | null>(null);
+
+  // Clear all detail panels except the given type
+  const clearSelections = useCallback((except?: string) => {
+    if (except !== "flight") setSelectedFlight(null);
+    if (except !== "sat") setSelectedSat(null);
+    if (except !== "quake") setSelectedQuake(null);
+    if (except !== "ship") setSelectedShip(null);
+    if (except !== "fire") setSelectedFire(null);
+    if (except !== "alert") setSelectedAlert(null);
+  }, []);
 
   // Initialize Cesium viewer
   useEffect(() => {
@@ -73,7 +106,6 @@ export function GlobeViewer() {
       msaaSamples: 4,
     });
 
-    // Fly to Lisbon
     v.camera.flyTo({
       destination: Cartesian3.fromDegrees(
         DEFAULT_CAMERA.longitude,
@@ -83,14 +115,12 @@ export function GlobeViewer() {
       duration: 0,
     });
 
-    // Load Google 3D Tiles
     loadGoogleTileset().then((tileset) => {
       if (tileset && !v.isDestroyed()) {
         v.scene.primitives.add(tileset);
       }
     });
 
-    // Enable depth testing against terrain
     v.scene.globe.depthTestAgainstTerrain = false;
 
     viewerRef.current = v;
@@ -140,8 +170,8 @@ export function GlobeViewer() {
             const icao = id.replace("flight-", "");
             const ac = flightData.aircraft.get(icao);
             if (ac) {
+              clearSelections("flight");
               setSelectedFlight(ac);
-              setSelectedSat(null);
             }
           } else if (id.startsWith("sat-")) {
             const noradStr = id.replace("sat-", "");
@@ -149,8 +179,36 @@ export function GlobeViewer() {
               (s) => String(s.noradId) === noradStr,
             );
             if (sat) {
+              clearSelections("sat");
               setSelectedSat(sat);
-              setSelectedFlight(null);
+            }
+          } else if (id.startsWith("quake-")) {
+            const qId = id.replace("quake-", "");
+            const quake = quakeData.earthquakes.find((q) => q.id === qId);
+            if (quake) {
+              clearSelections("quake");
+              setSelectedQuake(quake);
+            }
+          } else if (id.startsWith("ship-")) {
+            const mmsi = Number(id.replace("ship-", ""));
+            const ship = aisData.vessels.find((v) => v.mmsi === mmsi);
+            if (ship) {
+              clearSelections("ship");
+              setSelectedShip(ship);
+            }
+          } else if (id.startsWith("fire-")) {
+            const idx = Number(id.replace("fire-", ""));
+            const fire = fireData.fires[idx];
+            if (fire) {
+              clearSelections("fire");
+              setSelectedFire(fire);
+            }
+          } else if (id.startsWith("wx-")) {
+            const wxId = id.replace("wx-", "");
+            const alert = weatherData.alerts.find((a) => a.id === wxId);
+            if (alert) {
+              clearSelections("alert");
+              setSelectedAlert(alert);
             }
           }
         }
@@ -161,7 +219,7 @@ export function GlobeViewer() {
     return () => {
       if (!handler.isDestroyed()) handler.destroy();
     };
-  }, [viewer, flightData.aircraft, satData.satellites]);
+  }, [viewer, flightData.aircraft, satData.satellites, quakeData.earthquakes, aisData.vessels, fireData.fires, weatherData.alerts, clearSelections]);
 
   const toggleLayer = useCallback((layer: keyof LayerState) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
@@ -170,7 +228,13 @@ export function GlobeViewer() {
   const feeds = [
     { label: "FLIGHTS", active: flightData.count > 0, error: !!flightData.error },
     { label: "SATS", active: satData.count > 0, error: !!satData.error },
+    { label: "QUAKES", active: quakeData.count > 0, error: !!quakeData.error },
+    { label: "SHIPS", active: aisData.count > 0, error: !!aisData.error },
+    { label: "FIRES", active: fireData.count > 0, error: !!fireData.error },
+    { label: "WX", active: weatherData.count > 0, error: false },
   ];
+
+  const hasDetailOpen = selectedFlight || selectedSat || selectedQuake || selectedShip || selectedFire || selectedAlert;
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -191,6 +255,18 @@ export function GlobeViewer() {
         viewer={viewer}
       />
       <GridOverlay viewer={viewer} enabled={layers.grid} />
+      {layers.earthquakes && (
+        <EarthquakeLayer earthquakes={quakeData.earthquakes} viewer={viewer} />
+      )}
+      {layers.ships && (
+        <ShipLayer vessels={aisData.vessels} viewer={viewer} />
+      )}
+      {layers.fires && (
+        <FireLayer fires={fireData.fires} viewer={viewer} />
+      )}
+      {layers.weather && (
+        <WeatherLayer alerts={weatherData.alerts} viewer={viewer} />
+      )}
 
       {/* Filter pipeline */}
       <FilterPipeline viewer={viewer} mode={filterMode} />
@@ -224,6 +300,22 @@ export function GlobeViewer() {
           satellite={selectedSat}
           onClose={() => setSelectedSat(null)}
         />
+        <QuakeDetailPanel
+          earthquake={selectedQuake}
+          onClose={() => setSelectedQuake(null)}
+        />
+        <ShipDetailPanel
+          vessel={selectedShip}
+          onClose={() => setSelectedShip(null)}
+        />
+        <FireDetailPanel
+          fire={selectedFire}
+          onClose={() => setSelectedFire(null)}
+        />
+        <WeatherDetailPanel
+          alert={selectedAlert}
+          onClose={() => setSelectedAlert(null)}
+        />
       </div>
 
       {/* Keyboard shortcut hints */}
@@ -237,7 +329,7 @@ export function GlobeViewer() {
           textAlign: "right",
           lineHeight: 1.6,
           pointerEvents: "none",
-          display: selectedFlight || selectedSat ? "none" : "block",
+          display: hasDetailOpen ? "none" : "block",
         }}
       >
         <div>[0] Standard [1] CRT [2] NVG [3] FLIR [4] Cel</div>
