@@ -5,22 +5,34 @@ export const DEFAULT_CAMERA = {
   height: 2_000_000,
 } as const;
 
-/** API endpoints */
+/** Proxy API paths (Vite proxy in dev, Express proxy in prod) */
 export const API = {
+  FLIGHTS: "/api/flights",
   OPENSKY_STATES: "https://opensky-network.org/api/states/all",
   CELESTRAK_GP: "https://celestrak.org/NORAD/elements/gp.php",
+  EARTHQUAKES: "/api/quakes",
+  AIS: "/api/ais",
+  FIRES: "/api/fires",
+  WEATHER: "/api/weather",
 } as const;
 
 /** Refresh intervals (ms) */
 export const INTERVALS = {
-  FLIGHTS: 10_000,
+  FLIGHTS: 15_000,
   SATELLITES: 1_000,
+  EARTHQUAKES: 300_000,   // 5 min
+  AIS: 10_000,
+  FIRES: 1_800_000,       // 30 min
+  WEATHER: 600_000,        // 10 min
 } as const;
 
 /** Performance caps */
 export const LIMITS = {
   MAX_SATELLITES: 200,
   MAX_FLIGHTS: 500,
+  MAX_SHIPS: 500,
+  MAX_QUAKES: 200,
+  MAX_FIRES: 500,
 } as const;
 
 /** Filter modes */

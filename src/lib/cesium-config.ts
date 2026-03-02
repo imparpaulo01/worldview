@@ -13,12 +13,23 @@ export function configureCesium(): void {
 }
 
 export async function loadGoogleTileset() {
-  try {
-    return await createGooglePhotorealistic3DTileset();
-  } catch (err) {
-    console.warn("Failed to load Google 3D Tiles:", err);
-    return null;
+  // Small delay to let viewer finish initialization
+  await new Promise((r) => setTimeout(r, 500));
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await createGooglePhotorealistic3DTileset();
+    } catch (err) {
+      if (attempt === 0) {
+        console.warn("Google 3D Tiles attempt 1 failed, retrying...");
+        await new Promise((r) => setTimeout(r, 1000));
+      } else {
+        console.warn("Google 3D Tiles unavailable, using default imagery:", err);
+        return null;
+      }
+    }
   }
+  return null;
 }
 
 export function cameraDestination(
