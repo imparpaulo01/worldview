@@ -3,17 +3,39 @@ import { Cartesian3 } from "cesium";
 import type { Aircraft } from "@/types/opensky";
 import type { Satellite } from "@/types/celestrak";
 
+type ResultType = "flight" | "satellite" | "earthquake" | "ship";
+
+interface SearchResult {
+  type: ResultType;
+  name: string;
+  lat: number;
+  lon: number;
+  alt: number;
+}
+
 interface SearchPanelProps {
   viewer: import("cesium").Viewer | null;
   aircraft: Aircraft[];
   satellites: Satellite[];
 }
 
+const TYPE_COLORS: Record<ResultType, string> = {
+  flight: "var(--color-green)",
+  satellite: "var(--color-amber)",
+  earthquake: "var(--color-red)",
+  ship: "#3388ff",
+};
+
+const TYPE_LABELS: Record<ResultType, string> = {
+  flight: "AC",
+  satellite: "SAT",
+  earthquake: "EQ",
+  ship: "AIS",
+};
+
 export function SearchPanel({ viewer, aircraft, satellites }: SearchPanelProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<
-    Array<{ type: "flight" | "satellite"; name: string; lat: number; lon: number; alt: number }>
-  >([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
 
   const handleSearch = useCallback(
     (q: string) => {
@@ -24,7 +46,7 @@ export function SearchPanel({ viewer, aircraft, satellites }: SearchPanelProps) 
       }
 
       const upper = q.toUpperCase();
-      const found: typeof results = [];
+      const found: SearchResult[] = [];
 
       for (const ac of aircraft) {
         if (
@@ -78,7 +100,7 @@ export function SearchPanel({ viewer, aircraft, satellites }: SearchPanelProps) 
         type="text"
         value={query}
         onChange={(e) => handleSearch(e.target.value)}
-        placeholder="Callsign, NORAD ID, satellite..."
+        placeholder="Callsign, NORAD ID, vessel..."
         style={{
           width: "100%",
           background: "rgba(255,255,255,0.05)",
@@ -114,14 +136,11 @@ export function SearchPanel({ viewer, aircraft, satellites }: SearchPanelProps) 
             >
               <span
                 style={{
-                  color:
-                    r.type === "flight"
-                      ? "var(--color-green)"
-                      : "var(--color-amber)",
+                  color: TYPE_COLORS[r.type],
                   fontSize: 8,
                 }}
               >
-                {r.type === "flight" ? "AC" : "SAT"}
+                {TYPE_LABELS[r.type]}
               </span>
               <span>{r.name}</span>
             </button>
