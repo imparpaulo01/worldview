@@ -1,7 +1,5 @@
-import { useMemo } from "react";
+import { useEffect } from "react";
 import {
-  Entity,
-  PolylineGraphics,
   Cartesian3,
   Color,
   PolylineDashMaterialProperty,
@@ -13,15 +11,19 @@ interface GridOverlayProps {
 }
 
 export function GridOverlay({ viewer, enabled }: GridOverlayProps) {
-  useMemo(() => {
+  useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
-    // Clear existing grid entities
-    const toRemove = viewer.entities.values.filter(
-      (e) => e.id?.startsWith("grid-"),
-    );
-    for (const e of toRemove) {
-      viewer.entities.remove(e);
+    // Collect IDs to remove first
+    const idsToRemove: string[] = [];
+    for (let i = 0; i < viewer.entities.values.length; i++) {
+      const e = viewer.entities.values[i];
+      if (e?.id?.startsWith("grid-")) {
+        idsToRemove.push(e.id);
+      }
+    }
+    for (const id of idsToRemove) {
+      viewer.entities.removeById(id);
     }
 
     if (!enabled) return;
@@ -37,16 +39,14 @@ export function GridOverlay({ viewer, enabled }: GridOverlayProps) {
       for (let lon = -180; lon <= 180; lon += 5) {
         positions.push(Cartesian3.fromDegrees(lon, lat, 0));
       }
-      viewer.entities.add(
-        new Entity({
-          id: `grid-lat-${lat}`,
-          polyline: new PolylineGraphics({
-            positions,
-            width: 1,
-            material: dashMaterial,
-          }),
-        }),
-      );
+      viewer.entities.add({
+        id: `grid-lat-${lat}`,
+        polyline: {
+          positions,
+          width: 1,
+          material: dashMaterial,
+        },
+      });
     }
 
     // Longitude lines every 30 degrees
@@ -55,16 +55,14 @@ export function GridOverlay({ viewer, enabled }: GridOverlayProps) {
       for (let lat = -90; lat <= 90; lat += 5) {
         positions.push(Cartesian3.fromDegrees(lon, lat, 0));
       }
-      viewer.entities.add(
-        new Entity({
-          id: `grid-lon-${lon}`,
-          polyline: new PolylineGraphics({
-            positions,
-            width: 1,
-            material: dashMaterial,
-          }),
-        }),
-      );
+      viewer.entities.add({
+        id: `grid-lon-${lon}`,
+        polyline: {
+          positions,
+          width: 1,
+          material: dashMaterial,
+        },
+      });
     }
   }, [viewer, enabled]);
 

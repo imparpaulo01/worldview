@@ -1,24 +1,47 @@
-import { GPResponseSchema } from "@/types/celestrak";
-import type { GPElement } from "@/types/celestrak";
-import { API, LIMITS } from "@/lib/constants";
+import { LIMITS } from "@/lib/constants";
 
-const GROUPS = ["stations", "starlink", "active"] as const;
+export interface TLERecord {
+  name: string;
+  line1: string;
+  line2: string;
+}
+
+const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/gp.php";
 
 export async function fetchTLEData(
-  group: (typeof GROUPS)[number] = "stations",
-): Promise<GPElement[]> {
+  group: string = "stations",
+): Promise<TLERecord[]> {
   try {
-    const url = `${API.CELESTRAK_GP}?GROUP=${group}&FORMAT=JSON`;
+    const url = `${CELESTRAK_BASE}?GROUP=${group}&FORMAT=TLE`;
     const res = await fetch(url);
     if (!res.ok) return [];
 
-    const json: unknown = await res.json();
-    const parsed = GPResponseSchema.safeParse(json);
-    if (!parsed.success) return [];
-
-    return parsed.data.slice(0, LIMITS.MAX_SATELLITES);
+    const text = await res.text();
+    return parseTLE(text);
   } catch (err) {
     console.warn("CelesTrak fetch failed:", err);
     return [];
   }
+}
+
+function parseTLE(text: string): TLERecord[] {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const records: TLERecord[] = [];
+
+  for (let i = 0; i + 2 < lines.length && records.length < LIMITS.MAX_SATELLITES; i += 3) {
+    const name = lines[i]!;
+    const line1 = lines[i + 1]!;
+    const line2 = lines[i + 2]!;
+
+    // Validate: line1 starts with "1 ", line2 starts with "2 "
+    if (line1.startsWith("1 ") && line2.startsWith("2 ")) {
+      records.push({ name, line1, line2 });
+    }
+  }
+
+  return records;
 }

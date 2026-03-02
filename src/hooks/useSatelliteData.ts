@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import * as satellite from "satellite.js";
-import type { GPElement, Satellite } from "@/types/celestrak";
+import type { Satellite } from "@/types/celestrak";
 import { fetchTLEData } from "@/feeds/celestrak";
+import type { TLERecord } from "@/feeds/celestrak";
 import { radToDeg } from "@/lib/utils";
 import { INTERVALS } from "@/lib/constants";
 
@@ -12,69 +13,37 @@ interface SatelliteDataState {
   error: string | null;
 }
 
-function gpToTLE(gp: GPElement): { line1: string; line2: string } | null {
-  try {
-    const epoch = new Date(gp.EPOCH);
-    const year = epoch.getUTCFullYear() % 100;
-    const start = new Date(Date.UTC(epoch.getUTCFullYear(), 0, 1));
-    const dayOfYear =
-      (epoch.getTime() - start.getTime()) / 86400000 + 1;
-
-    const noradStr = String(gp.NORAD_CAT_ID).padStart(5, "0");
-    const classif = gp.CLASSIFICATION_TYPE || "U";
-    const intlDesig = gp.OBJECT_ID.padEnd(8);
-    const epochStr = `${String(year).padStart(2, "0")}${dayOfYear.toFixed(8).padStart(12, "0")}`;
-    const meanMotionDot =
-      gp.MEAN_MOTION_DOT >= 0
-        ? ` .${Math.abs(gp.MEAN_MOTION_DOT).toExponential(4).replace("e", "").replace(".", "").replace("+", "").replace("-", "-")}`.slice(0, 10)
-        : `-.${Math.abs(gp.MEAN_MOTION_DOT).toExponential(4).replace("e", "").replace(".", "").replace("+", "").replace("-", "-")}`.slice(0, 10);
-
-    const line1 = `1 ${noradStr}${classif} ${intlDesig} ${epochStr} ${meanMotionDot}  00000-0  00000-0 0  999`;
-    const line2 = `2 ${noradStr} ${gp.INCLINATION.toFixed(4).padStart(8)} ${gp.RA_OF_ASC_NODE.toFixed(4).padStart(8)} ${String(gp.ECCENTRICITY).replace("0.", "").padEnd(7, "0").slice(0, 7)} ${gp.ARG_OF_PERICENTER.toFixed(4).padStart(8)} ${gp.MEAN_ANOMALY.toFixed(4).padStart(8)} ${gp.MEAN_MOTION.toFixed(8).padStart(11)}${String(gp.REV_AT_EPOCH).padStart(5)}`;
-
-    return { line1, line2 };
-  } catch {
-    return null;
-  }
-}
-
 function propagateSatellite(
-  gp: GPElement,
+  tle: TLERecord,
   date: Date,
 ): Satellite | null {
   try {
-    const tle = gpToTLE(gp);
-    if (!tle) return null;
-
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
-    const positionAndVelocity = satellite.propagate(satrec, date);
+    const posVel = satellite.propagate(satrec, date);
 
-    if (
-      typeof positionAndVelocity.position === "boolean" ||
-      !positionAndVelocity.position
-    )
+    if (typeof posVel.position === "boolean" || !posVel.position)
       return null;
 
     const gmst = satellite.gstime(date);
-    const geo = satellite.eciToGeodetic(
-      positionAndVelocity.position,
-      gmst,
-    );
+    const geo = satellite.eciToGeodetic(posVel.position, gmst);
 
-    const vel = positionAndVelocity.velocity;
+    const vel = posVel.velocity;
     let speed = 0;
     if (typeof vel !== "boolean" && vel) {
       speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
     }
 
+    // Extract NORAD ID from TLE line 2 (columns 2-6)
+    const noradId = parseInt(tle.line2.substring(2, 7).trim(), 10);
+
     return {
-      name: gp.OBJECT_NAME,
-      noradId: gp.NORAD_CAT_ID,
+      name: tle.name,
+      noradId: isNaN(noradId) ? 0 : noradId,
       longitude: radToDeg(geo.longitude),
       latitude: radToDeg(geo.latitude),
-      altitude: geo.height,
-      velocity: speed,
-      inclination: gp.INCLINATION,
+      altitude: geo.height, // km
+      velocity: speed, // km/s
+      inclination: parseFloat(tle.line2.substring(8, 16).trim()) || 0,
     };
   } catch {
     return null;
@@ -82,7 +51,7 @@ function propagateSatellite(
 }
 
 export function useSatelliteData(enabled = true) {
-  const [gpData, setGpData] = useState<GPElement[]>([]);
+  const [tleData, setTleData] = useState<TLERecord[]>([]);
   const [state, setState] = useState<SatelliteDataState>({
     satellites: [],
     count: 0,
@@ -96,7 +65,7 @@ export function useSatelliteData(enabled = true) {
     setState((prev) => ({ ...prev, loading: true }));
 
     const data = await fetchTLEData("stations");
-    setGpData(data);
+    setTleData(data);
 
     setState((prev) => ({
       ...prev,
@@ -107,13 +76,13 @@ export function useSatelliteData(enabled = true) {
 
   // Propagate positions at 1Hz
   useEffect(() => {
-    if (!enabled || gpData.length === 0) return;
+    if (!enabled || tleData.length === 0) return;
 
     const propagate = () => {
       const now = new Date();
       const sats: Satellite[] = [];
-      for (const gp of gpData) {
-        const sat = propagateSatellite(gp, now);
+      for (const tle of tleData) {
+        const sat = propagateSatellite(tle, now);
         if (sat) sats.push(sat);
       }
       setState({
@@ -130,7 +99,7 @@ export function useSatelliteData(enabled = true) {
     return () => {
       if (animRef.current) clearInterval(animRef.current);
     };
-  }, [enabled, gpData]);
+  }, [enabled, tleData]);
 
   useEffect(() => {
     loadTLEs();
