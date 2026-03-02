@@ -19,6 +19,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/flights/, ""),
       },
+      "/api/celestrak": {
+        target: "https://celestrak.org",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/celestrak/, "/NORAD/elements/gp.php"),
+      },
       "/api/quakes": {
         target: "https://earthquake.usgs.gov",
         changeOrigin: true,
@@ -28,7 +33,7 @@ export default defineConfig({
       "/api/fires": {
         target: "https://firms.modaps.eosdis.nasa.gov",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/fires/, ""),
+        rewrite: () => "/api/area/csv/VIIRS_SNPP_NRT/world/1",
       },
       "/api/weather": {
         target: "https://api.weather.gov",

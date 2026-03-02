@@ -1,5 +1,4 @@
 uniform sampler2D colorTexture;
-uniform float czm_frameNumber;
 in vec2 v_textureCoordinates;
 
 void main() {
