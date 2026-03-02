@@ -8,24 +8,37 @@ import {
   DistanceDisplayCondition,
   LabelStyle,
 } from "cesium";
-import type { Earthquake } from "@/types/usgs";
+import type { ConflictEvent } from "@/types/gdelt";
+import { CONFLICT_COLORS } from "@/types/gdelt";
 
-interface EarthquakeLayerProps {
-  earthquakes: Earthquake[];
+interface ConflictLayerProps {
+  conflicts: ConflictEvent[];
   viewer: import("cesium").Viewer | null;
 }
 
-function magToSize(mag: number): number {
-  return Math.max(14, Math.min(36, mag * 5));
+/** Map CAMEO root code to color */
+function eventColor(eventCode: string): Color {
+  const rootCode = eventCode.substring(0, 2);
+  const hex = CONFLICT_COLORS[rootCode] || "#ffcc00";
+  return Color.fromCssColorString(hex);
 }
 
-function depthToColor(depth: number): Color {
-  if (depth < 70) return Color.fromCssColorString("#ff3333");
-  if (depth < 300) return Color.fromCssColorString("#ff8800");
-  return Color.fromCssColorString("#3388ff");
+/** Map Goldstein scale to point size (more negative = larger) */
+function severityToSize(goldstein: number): number {
+  const normalized = Math.max(0, Math.min(1, (-goldstein) / 10));
+  return 16 + normalized * 20;
 }
 
-export function EarthquakeLayer({ earthquakes, viewer }: EarthquakeLayerProps) {
+/** Short label for event type */
+const TYPE_ABBREV: Record<string, string> = {
+  "Protest": "PRT",
+  "Coerce": "CRC",
+  "Assault": "AST",
+  "Fight": "FGT",
+  "Mass Violence": "MVL",
+};
+
+export function ConflictLayer({ conflicts, viewer }: ConflictLayerProps) {
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
@@ -33,17 +46,17 @@ export function EarthquakeLayer({ earthquakes, viewer }: EarthquakeLayerProps) {
       const idsToRemove: string[] = [];
       for (let i = 0; i < viewer.entities.values.length; i++) {
         const e = viewer.entities.values[i];
-        if (e?.id?.startsWith("quake-")) idsToRemove.push(e.id);
+        if (e?.id?.startsWith("conflict-")) idsToRemove.push(e.id);
       }
       for (const id of idsToRemove) viewer.entities.removeById(id);
 
-      for (const q of earthquakes) {
-        const color = depthToColor(q.depth);
+      for (const c of conflicts) {
+        const color = eventColor(c.eventCode);
         viewer.entities.add({
-          id: `quake-${q.id}`,
-          position: Cartesian3.fromDegrees(q.longitude, q.latitude, 500),
+          id: `conflict-${c.id}`,
+          position: Cartesian3.fromDegrees(c.longitude, c.latitude, 500),
           point: {
-            pixelSize: magToSize(q.magnitude),
+            pixelSize: severityToSize(c.goldsteinScale),
             color: color.withAlpha(0.7),
             outlineColor: color,
             outlineWidth: 1,
@@ -51,7 +64,7 @@ export function EarthquakeLayer({ earthquakes, viewer }: EarthquakeLayerProps) {
 
           },
           label: {
-            text: `M${q.magnitude.toFixed(1)}`,
+            text: c.eventType,
             font: "14px JetBrains Mono",
             fillColor: Color.WHITE,
             style: LabelStyle.FILL,
@@ -63,7 +76,7 @@ export function EarthquakeLayer({ earthquakes, viewer }: EarthquakeLayerProps) {
         });
       }
     } catch (err) {
-      console.warn("EarthquakeLayer error:", err);
+      console.warn("ConflictLayer error:", err);
     }
 
     return () => {
@@ -71,12 +84,12 @@ export function EarthquakeLayer({ earthquakes, viewer }: EarthquakeLayerProps) {
         const ids: string[] = [];
         for (let i = 0; i < viewer.entities.values.length; i++) {
           const e = viewer.entities.values[i];
-          if (e?.id?.startsWith("quake-")) ids.push(e.id);
+          if (e?.id?.startsWith("conflict-")) ids.push(e.id);
         }
         for (const id of ids) viewer.entities.removeById(id);
       }
     };
-  }, [earthquakes, viewer]);
+  }, [conflicts, viewer]);
 
   return null;
 }

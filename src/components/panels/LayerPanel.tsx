@@ -8,6 +8,7 @@ export interface LayerState {
   ships: boolean;
   fires: boolean;
   weather: boolean;
+  conflicts: boolean;
 }
 
 interface LayerPanelProps {
@@ -26,6 +27,7 @@ export function LayerPanel({ layers, onToggle }: LayerPanelProps) {
         <Toggle label="Ships" checked={layers.ships} onChange={() => onToggle("ships")} />
         <Toggle label="Fires" checked={layers.fires} onChange={() => onToggle("fires")} />
         <Toggle label="Weather" checked={layers.weather} onChange={() => onToggle("weather")} />
+        <Toggle label="Conflicts" checked={layers.conflicts} onChange={() => onToggle("conflicts")} />
         <Toggle label="Grid" checked={layers.grid} onChange={() => onToggle("grid")} />
       </div>
     </div>

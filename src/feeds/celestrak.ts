@@ -24,7 +24,7 @@ export async function fetchTLEData(
 async function fetchCelesTrak(group: string): Promise<TLERecord[]> {
   try {
     const url = `/api/celestrak?GROUP=${group}&FORMAT=TLE`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
 
     const text = await res.text();
@@ -35,29 +35,61 @@ async function fetchCelesTrak(group: string): Promise<TLERecord[]> {
   }
 }
 
-async function fetchTLEFallback(): Promise<TLERecord[]> {
+interface TLEApiResponse {
+  member?: { name: string; line1: string; line2: string }[];
+}
+
+async function fetchTLEPage(
+  search: string,
+  page: number,
+): Promise<TLERecord[]> {
   try {
-    const url = `https://tle.ivanstanojevic.me/api/tle?page_size=${LIMITS.MAX_SATELLITES}&sort=popularity&sort_dir=desc`;
+    const url = `https://tle.ivanstanojevic.me/api/tle/?search=${encodeURIComponent(search)}&page=${page}`;
     const res = await fetch(url);
     if (!res.ok) return [];
 
-    const json = await res.json() as {
-      member?: { name: string; line1: string; line2: string }[];
-    };
+    const json = (await res.json()) as TLEApiResponse;
     if (!json.member) return [];
 
-    const records: TLERecord[] = [];
-    for (const sat of json.member) {
-      if (records.length >= LIMITS.MAX_SATELLITES) break;
-      if (sat.line1?.startsWith("1 ") && sat.line2?.startsWith("2 ")) {
-        records.push({ name: sat.name, line1: sat.line1, line2: sat.line2 });
-      }
-    }
-    return records;
-  } catch (err) {
-    console.warn("TLE fallback fetch failed:", err);
+    return json.member
+      .filter((s) => s.line1?.startsWith("1 ") && s.line2?.startsWith("2 "))
+      .map((s) => ({ name: s.name, line1: s.line1, line2: s.line2 }));
+  } catch {
     return [];
   }
+}
+
+async function fetchTLEFallback(): Promise<TLERecord[]> {
+  // Fetch diverse active satellite groups in parallel (all have fresh TLEs)
+  const queries: [string, number][] = [
+    ["STARLINK", 1], ["STARLINK", 2], ["STARLINK", 3], ["STARLINK", 4],
+    ["ISS", 1],
+    ["GPS", 1],
+    ["NOAA", 1],
+    ["GOES", 1],
+    ["IRIDIUM", 1],
+    ["ONEWEB", 1],
+  ];
+
+  const pages = await Promise.all(
+    queries.map(([search, page]) => fetchTLEPage(search, page)),
+  );
+
+  const seen = new Set<string>();
+  const records: TLERecord[] = [];
+
+  for (const page of pages) {
+    for (const rec of page) {
+      if (records.length >= LIMITS.MAX_SATELLITES) return records;
+      // Deduplicate by TLE line 1 (contains NORAD ID)
+      const id = rec.line1.substring(2, 7).trim();
+      if (seen.has(id)) continue;
+      seen.add(id);
+      records.push(rec);
+    }
+  }
+
+  return records;
 }
 
 function parseTLE(text: string): TLERecord[] {

@@ -34,34 +34,42 @@ export function ShipLayer({ vessels, viewer }: ShipLayerProps) {
       for (const v of vessels) {
         viewer.entities.add({
           id: `ship-${v.mmsi}`,
-          position: Cartesian3.fromDegrees(v.longitude, v.latitude, 0),
+          position: Cartesian3.fromDegrees(v.longitude, v.latitude, 100),
           billboard: {
             image: SHIP_SVG,
-            width: 20,
-            height: 20,
+            width: 28,
+            height: 28,
             rotation: CesiumMath.toRadians(-v.heading),
             verticalOrigin: VerticalOrigin.CENTER,
             horizontalOrigin: HorizontalOrigin.CENTER,
-            scaleByDistance: new NearFarScalar(1e4, 1.5, 1e7, 0.4),
-            distanceDisplayCondition: new DistanceDisplayCondition(0, 1e7),
+            scaleByDistance: new NearFarScalar(5e3, 1.2, 1e7, 0.5),
           },
           label: {
             text: v.name,
-            font: "9px JetBrains Mono",
-            fillColor: Color.fromCssColorString("#3388ff"),
-            outlineColor: Color.BLACK,
-            outlineWidth: 2,
-            style: LabelStyle.FILL_AND_OUTLINE,
+            font: "14px JetBrains Mono",
+            fillColor: Color.WHITE,
+            style: LabelStyle.FILL,
             verticalOrigin: VerticalOrigin.BOTTOM,
-            pixelOffset: new Cartesian2(0, -14),
-            scaleByDistance: new NearFarScalar(1e4, 1.0, 5e6, 0.0),
-            distanceDisplayCondition: new DistanceDisplayCondition(0, 3e6),
+            pixelOffset: new Cartesian2(0, -22),
+            scaleByDistance: new NearFarScalar(5e3, 1.2, 8e6, 0.9),
+            distanceDisplayCondition: new DistanceDisplayCondition(0, 5e6),
           },
         });
       }
     } catch (err) {
       console.warn("ShipLayer error:", err);
     }
+
+    return () => {
+      if (viewer && !viewer.isDestroyed()) {
+        const ids: string[] = [];
+        for (let i = 0; i < viewer.entities.values.length; i++) {
+          const e = viewer.entities.values[i];
+          if (e?.id?.startsWith("ship-")) ids.push(e.id);
+        }
+        for (const id of ids) viewer.entities.removeById(id);
+      }
+    };
   }, [vessels, viewer]);
 
   return null;

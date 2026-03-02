@@ -1,8 +1,20 @@
 import express from "express";
 import { join } from "path";
+import { startCollector, getVessels, getSource } from "./ais-collector.ts";
+import { startConflictCollector, getConflicts } from "./gdelt-collector.ts";
+import { startMeteoAlarmCollector, getMeteoAlerts } from "./meteoalarm-collector.ts";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+// Start AIS data collector (AISStream WebSocket + Digitraffic fallback)
+startCollector(process.env.VITE_AISSTREAM_API_KEY);
+
+// Start GDELT conflict data collector
+startConflictCollector();
+
+// Start MeteoAlarm European weather collector
+startMeteoAlarmCollector();
 
 // Serve static build
 app.use(express.static(join(import.meta.dirname, "../dist")));
@@ -50,9 +62,32 @@ app.get("/api/weather", async (_req, res) => {
   }
 });
 
-// AIS snapshot placeholder (requires WebSocket relay - future enhancement)
-app.get("/api/ais", (_req, res) => {
-  res.json([]);
+// AIS vessel data (from collector — AISStream global + Digitraffic fallback)
+app.get("/api/ais/vessel/:mmsi", async (req, res) => {
+  try {
+    const r = await fetch(`https://meri.digitraffic.fi/api/ais/v1/vessels/${req.params.mmsi}`, {
+      headers: { "Accept-Encoding": "gzip" },
+    });
+    res.status(r.status).json(await r.json());
+  } catch {
+    res.status(502).json({ error: "upstream failed" });
+  }
+});
+
+app.get("/api/ais", async (_req, res) => {
+  const vessels = await getVessels();
+  res.setHeader("X-AIS-Source", getSource());
+  res.json(vessels);
+});
+
+// GDELT conflict data (from collector)
+app.get("/api/conflicts", (_req, res) => {
+  res.json(getConflicts());
+});
+
+// MeteoAlarm European weather alerts (from collector)
+app.get("/api/weather-eu", (_req, res) => {
+  res.json(getMeteoAlerts());
 });
 
 // SPA fallback

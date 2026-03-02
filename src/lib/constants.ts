@@ -14,6 +14,8 @@ export const API = {
   AIS: "/api/ais",
   FIRES: "/api/fires",
   WEATHER: "/api/weather",
+  WEATHER_EU: "/api/weather-eu",
+  CONFLICTS: "/api/conflicts",
 } as const;
 
 /** Refresh intervals (ms) */
@@ -21,9 +23,10 @@ export const INTERVALS = {
   FLIGHTS: 15_000,
   SATELLITES: 1_000,
   EARTHQUAKES: 300_000,   // 5 min
-  AIS: 10_000,
+  AIS: 30_000,
   FIRES: 1_800_000,       // 30 min
   WEATHER: 600_000,        // 10 min
+  CONFLICTS: 900_000,      // 15 min (matches GDELT update cycle)
 } as const;
 
 /** Performance caps */
@@ -33,6 +36,7 @@ export const LIMITS = {
   MAX_SHIPS: 500,
   MAX_QUAKES: 200,
   MAX_FIRES: 500,
+  MAX_CONFLICTS: 300,
 } as const;
 
 /** Filter modes */

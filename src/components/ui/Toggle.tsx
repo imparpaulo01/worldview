@@ -29,7 +29,6 @@ export function Toggle({ label, checked, onChange }: ToggleProps) {
           position: "relative",
           transition: "all 0.2s",
         }}
-        onClick={() => onChange(!checked)}
       >
         <div
           style={{

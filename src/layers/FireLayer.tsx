@@ -1,9 +1,12 @@
 import { useEffect } from "react";
 import {
   Cartesian3,
+  Cartesian2,
   Color,
+  VerticalOrigin,
   NearFarScalar,
   DistanceDisplayCondition,
+  LabelStyle,
 } from "cesium";
 import type { FireHotspot } from "@/types/firms";
 
@@ -13,7 +16,7 @@ interface FireLayerProps {
 }
 
 function frpToSize(frp: number): number {
-  return Math.max(3, Math.min(12, 3 + frp / 50));
+  return Math.max(14, Math.min(32, 14 + frp / 20));
 }
 
 function confidenceToColor(conf: string): Color {
@@ -39,20 +42,40 @@ export function FireLayer({ fires, viewer }: FireLayerProps) {
         const color = confidenceToColor(f.confidence);
         viewer.entities.add({
           id: `fire-${i}`,
-          position: Cartesian3.fromDegrees(f.longitude, f.latitude, 0),
+          position: Cartesian3.fromDegrees(f.longitude, f.latitude, 500),
           point: {
             pixelSize: frpToSize(f.frp),
             color: color.withAlpha(0.6),
             outlineColor: color,
             outlineWidth: 1,
-            scaleByDistance: new NearFarScalar(1e4, 1.5, 2e7, 0.3),
-            distanceDisplayCondition: new DistanceDisplayCondition(0, 2e7),
+            scaleByDistance: new NearFarScalar(5e3, 1.0, 1e7, 0.4),
+          },
+          label: {
+            text: `${f.frp.toFixed(0)} MW`,
+            font: "14px JetBrains Mono",
+            fillColor: Color.WHITE,
+            style: LabelStyle.FILL,
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            pixelOffset: new Cartesian2(0, -18),
+            scaleByDistance: new NearFarScalar(5e3, 1.2, 8e6, 0.9),
+            distanceDisplayCondition: new DistanceDisplayCondition(0, 5e6),
           },
         });
       }
     } catch (err) {
       console.warn("FireLayer error:", err);
     }
+
+    return () => {
+      if (viewer && !viewer.isDestroyed()) {
+        const ids: string[] = [];
+        for (let i = 0; i < viewer.entities.values.length; i++) {
+          const e = viewer.entities.values[i];
+          if (e?.id?.startsWith("fire-")) ids.push(e.id);
+        }
+        for (const id of ids) viewer.entities.removeById(id);
+      }
+    };
   }, [fires, viewer]);
 
   return null;

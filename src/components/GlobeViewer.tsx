@@ -15,6 +15,7 @@ import { useEarthquakeData } from "@/hooks/useEarthquakeData";
 import { useAISData } from "@/hooks/useAISData";
 import { useFireData } from "@/hooks/useFireData";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import { useConflictData } from "@/hooks/useConflictData";
 import { useFilterMode } from "@/hooks/useFilterMode";
 import { FilterPipeline } from "@/filters/FilterPipeline";
 import { FlightLayer } from "@/layers/FlightLayer";
@@ -24,6 +25,7 @@ import { EarthquakeLayer } from "@/layers/EarthquakeLayer";
 import { ShipLayer } from "@/layers/ShipLayer";
 import { FireLayer } from "@/layers/FireLayer";
 import { WeatherLayer } from "@/layers/WeatherLayer";
+import { ConflictLayer } from "@/layers/ConflictLayer";
 import { Crosshair } from "@/components/hud/Crosshair";
 import { DataReadout } from "@/components/hud/DataReadout";
 import { StatusBar } from "@/components/hud/StatusBar";
@@ -37,12 +39,14 @@ import { QuakeDetailPanel } from "@/components/panels/QuakeDetailPanel";
 import { ShipDetailPanel } from "@/components/panels/ShipDetailPanel";
 import { FireDetailPanel } from "@/components/panels/FireDetailPanel";
 import { WeatherDetailPanel } from "@/components/panels/WeatherDetailPanel";
+import { ConflictDetailPanel } from "@/components/panels/ConflictDetailPanel";
 import type { Aircraft } from "@/types/opensky";
 import type { Satellite } from "@/types/celestrak";
 import type { Earthquake } from "@/types/usgs";
 import type { Vessel } from "@/types/ais";
 import type { FireHotspot } from "@/types/firms";
 import type { WeatherAlert } from "@/types/nws";
+import type { ConflictEvent } from "@/types/gdelt";
 
 configureCesium();
 
@@ -59,6 +63,7 @@ export function GlobeViewer() {
     ships: false,
     fires: false,
     weather: false,
+    conflicts: false,
   });
 
   const { mode: filterMode, setMode: setFilterMode } = useFilterMode();
@@ -68,6 +73,7 @@ export function GlobeViewer() {
   const aisData = useAISData(layers.ships);
   const fireData = useFireData(layers.fires);
   const weatherData = useWeatherData(layers.weather);
+  const conflictData = useConflictData(layers.conflicts);
 
   const [selectedFlight, setSelectedFlight] = useState<Aircraft | null>(null);
   const [selectedSat, setSelectedSat] = useState<Satellite | null>(null);
@@ -75,6 +81,7 @@ export function GlobeViewer() {
   const [selectedShip, setSelectedShip] = useState<Vessel | null>(null);
   const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
   const [selectedAlert, setSelectedAlert] = useState<WeatherAlert | null>(null);
+  const [selectedConflict, setSelectedConflict] = useState<ConflictEvent | null>(null);
 
   // Clear all detail panels except the given type
   const clearSelections = useCallback((except?: string) => {
@@ -84,6 +91,7 @@ export function GlobeViewer() {
     if (except !== "ship") setSelectedShip(null);
     if (except !== "fire") setSelectedFire(null);
     if (except !== "alert") setSelectedAlert(null);
+    if (except !== "conflict") setSelectedConflict(null);
   }, []);
 
   // Initialize Cesium viewer
@@ -210,6 +218,13 @@ export function GlobeViewer() {
               clearSelections("alert");
               setSelectedAlert(alert);
             }
+          } else if (id.startsWith("conflict-")) {
+            const cId = id.replace("conflict-", "");
+            const conflict = conflictData.conflicts.find((c) => c.id === cId);
+            if (conflict) {
+              clearSelections("conflict");
+              setSelectedConflict(conflict);
+            }
           }
         }
       },
@@ -219,7 +234,7 @@ export function GlobeViewer() {
     return () => {
       if (!handler.isDestroyed()) handler.destroy();
     };
-  }, [viewer, flightData.aircraft, satData.satellites, quakeData.earthquakes, aisData.vessels, fireData.fires, weatherData.alerts, clearSelections]);
+  }, [viewer, flightData.aircraft, satData.satellites, quakeData.earthquakes, aisData.vessels, fireData.fires, weatherData.alerts, conflictData.conflicts, clearSelections]);
 
   const toggleLayer = useCallback((layer: keyof LayerState) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
@@ -232,9 +247,10 @@ export function GlobeViewer() {
     { label: "SHIPS", active: aisData.count > 0, error: !!aisData.error },
     { label: "FIRES", active: fireData.count > 0, error: !!fireData.error },
     { label: "WX", active: weatherData.count > 0, error: false },
+    { label: "CONFLICTS", active: conflictData.count > 0, error: !!conflictData.error },
   ];
 
-  const hasDetailOpen = selectedFlight || selectedSat || selectedQuake || selectedShip || selectedFire || selectedAlert;
+  const hasDetailOpen = selectedFlight || selectedSat || selectedQuake || selectedShip || selectedFire || selectedAlert || selectedConflict;
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -245,15 +261,19 @@ export function GlobeViewer() {
       />
 
       {/* Layers */}
-      <FlightLayer
-        aircraft={flightData.aircraftList}
-        onSelect={setSelectedFlight}
-        viewer={viewer}
-      />
-      <SatelliteLayer
-        satellites={satData.satellites}
-        viewer={viewer}
-      />
+      {layers.flights && (
+        <FlightLayer
+          aircraft={flightData.aircraftList}
+          onSelect={setSelectedFlight}
+          viewer={viewer}
+        />
+      )}
+      {layers.satellites && (
+        <SatelliteLayer
+          satellites={satData.satellites}
+          viewer={viewer}
+        />
+      )}
       <GridOverlay viewer={viewer} enabled={layers.grid} />
       {layers.earthquakes && (
         <EarthquakeLayer earthquakes={quakeData.earthquakes} viewer={viewer} />
@@ -266,6 +286,9 @@ export function GlobeViewer() {
       )}
       {layers.weather && (
         <WeatherLayer alerts={weatherData.alerts} viewer={viewer} />
+      )}
+      {layers.conflicts && (
+        <ConflictLayer conflicts={conflictData.conflicts} viewer={viewer} />
       )}
 
       {/* Filter pipeline */}
@@ -315,6 +338,10 @@ export function GlobeViewer() {
         <WeatherDetailPanel
           alert={selectedAlert}
           onClose={() => setSelectedAlert(null)}
+        />
+        <ConflictDetailPanel
+          conflict={selectedConflict}
+          onClose={() => setSelectedConflict(null)}
         />
       </div>
 

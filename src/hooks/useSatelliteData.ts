@@ -64,7 +64,7 @@ export function useSatelliteData(enabled = true) {
     if (!enabled) return;
     setState((prev) => ({ ...prev, loading: true }));
 
-    const data = await fetchTLEData("stations");
+    const data = await fetchTLEData("visual");
     setTleData(data);
 
     setState((prev) => ({

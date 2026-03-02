@@ -20,51 +20,50 @@ export function SatelliteLayer({ satellites, viewer }: SatelliteLayerProps) {
     if (!viewer || viewer.isDestroyed()) return;
 
     try {
-      // Collect IDs to remove first, then remove
       const idsToRemove: string[] = [];
       for (let i = 0; i < viewer.entities.values.length; i++) {
         const e = viewer.entities.values[i];
-        if (e?.id?.startsWith("sat-")) {
-          idsToRemove.push(e.id);
-        }
+        if (e?.id?.startsWith("sat-")) idsToRemove.push(e.id);
       }
-      for (const id of idsToRemove) {
-        viewer.entities.removeById(id);
-      }
+      for (const id of idsToRemove) viewer.entities.removeById(id);
 
       for (const sat of satellites) {
         viewer.entities.add({
           id: `sat-${sat.noradId}`,
-          position: Cartesian3.fromDegrees(
-            sat.longitude,
-            sat.latitude,
-            sat.altitude * 1000,
-          ),
+          position: Cartesian3.fromDegrees(sat.longitude, sat.latitude, sat.altitude * 1000),
           point: {
-            pixelSize: 4,
+            pixelSize: 10,
             color: Color.fromCssColorString("#ffb000"),
             outlineColor: Color.BLACK,
             outlineWidth: 1,
             scaleByDistance: new NearFarScalar(1e5, 2.0, 1e8, 0.5),
-            distanceDisplayCondition: new DistanceDisplayCondition(0, 5e7),
           },
           label: {
             text: sat.name,
-            font: "9px JetBrains Mono",
-            fillColor: Color.fromCssColorString("#ffb000"),
-            outlineColor: Color.BLACK,
-            outlineWidth: 2,
-            style: LabelStyle.FILL_AND_OUTLINE,
+            font: "14px JetBrains Mono",
+            fillColor: Color.WHITE,
+            style: LabelStyle.FILL,
             verticalOrigin: VerticalOrigin.BOTTOM,
-            pixelOffset: new Cartesian2(0, -8),
-            scaleByDistance: new NearFarScalar(1e5, 1.0, 1e7, 0.0),
-            distanceDisplayCondition: new DistanceDisplayCondition(0, 1e7),
+            pixelOffset: new Cartesian2(0, -14),
+            scaleByDistance: new NearFarScalar(1e5, 1.2, 2e7, 0.9),
+            distanceDisplayCondition: new DistanceDisplayCondition(0, 2e7),
           },
         });
       }
     } catch (err) {
       console.warn("SatelliteLayer error:", err);
     }
+
+    return () => {
+      if (viewer && !viewer.isDestroyed()) {
+        const ids: string[] = [];
+        for (let i = 0; i < viewer.entities.values.length; i++) {
+          const e = viewer.entities.values[i];
+          if (e?.id?.startsWith("sat-")) ids.push(e.id);
+        }
+        for (const id of ids) viewer.entities.removeById(id);
+      }
+    };
   }, [satellites, viewer]);
 
   return null;

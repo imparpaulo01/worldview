@@ -43,25 +43,22 @@ export function WeatherLayer({ alerts, viewer }: WeatherLayerProps) {
 
         viewer.entities.add({
           id: `wx-${alert.id}`,
-          position: Cartesian3.fromDegrees(alert.longitude, alert.latitude, 0),
+          position: Cartesian3.fromDegrees(alert.longitude, alert.latitude, 500),
           point: {
-            pixelSize: 10,
-            color: color.withAlpha(0.5),
+            pixelSize: 32,
+            color: color.withAlpha(0.8),
             outlineColor: color,
-            outlineWidth: 2,
-            scaleByDistance: new NearFarScalar(1e4, 2.0, 1e7, 0.5),
-            distanceDisplayCondition: new DistanceDisplayCondition(0, 2e7),
+            outlineWidth: 4,
+            scaleByDistance: new NearFarScalar(5e3, 1.5, 1e7, 0.8),
           },
           label: {
             text: alert.event,
-            font: "9px JetBrains Mono",
-            fillColor: color,
-            outlineColor: Color.BLACK,
-            outlineWidth: 2,
-            style: LabelStyle.FILL_AND_OUTLINE,
+            font: "14px JetBrains Mono",
+            fillColor: Color.WHITE,
+            style: LabelStyle.FILL,
             verticalOrigin: VerticalOrigin.BOTTOM,
-            pixelOffset: new Cartesian2(0, -12),
-            scaleByDistance: new NearFarScalar(1e4, 1.0, 5e6, 0.0),
+            pixelOffset: new Cartesian2(0, -24),
+            scaleByDistance: new NearFarScalar(5e3, 1.2, 8e6, 0.9),
             distanceDisplayCondition: new DistanceDisplayCondition(0, 5e6),
           },
         });
@@ -69,6 +66,17 @@ export function WeatherLayer({ alerts, viewer }: WeatherLayerProps) {
     } catch (err) {
       console.warn("WeatherLayer error:", err);
     }
+
+    return () => {
+      if (viewer && !viewer.isDestroyed()) {
+        const ids: string[] = [];
+        for (let i = 0; i < viewer.entities.values.length; i++) {
+          const e = viewer.entities.values[i];
+          if (e?.id?.startsWith("wx-")) ids.push(e.id);
+        }
+        for (const id of ids) viewer.entities.removeById(id);
+      }
+    };
   }, [alerts, viewer]);
 
   return null;

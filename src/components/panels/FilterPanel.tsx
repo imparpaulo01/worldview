@@ -13,7 +13,7 @@ const KEY_LOOKUP = Object.fromEntries(
 
 export function FilterPanel({ mode, onChange }: FilterPanelProps) {
   return (
-    <div className="panel" style={{ position: "absolute", top: 180, right: 16, width: 180 }}>
+    <div className="panel" style={{ position: "absolute", top: 310, right: 16, width: 180 }}>
       <div className="panel-title">Filters</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {MODES.map(([key, label]) => (

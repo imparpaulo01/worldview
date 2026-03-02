@@ -11,6 +11,9 @@ export const NWSAlertSchema = z.object({
     areaDesc: z.string(),
     effective: z.string(),
     expires: z.string().nullable(),
+    geocode: z.object({
+      UGC: z.array(z.string()).optional(),
+    }).optional(),
   }),
   geometry: z
     .object({
