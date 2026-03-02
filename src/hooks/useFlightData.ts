@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Aircraft } from "@/types/opensky";
-import { fetchFlights } from "@/feeds/opensky";
+import { fetchADSBFlights } from "@/feeds/adsb";
 import { INTERVALS } from "@/lib/constants";
 
 interface FlightDataState {
@@ -20,14 +20,22 @@ export function useFlightData(enabled = true) {
     error: null,
   });
   const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const cameraRef = useRef({ lat: 38.7223, lon: -9.1393 });
+
+  /** Update camera center for location-based queries */
+  const updateCamera = useCallback((lat: number, lon: number) => {
+    cameraRef.current = { lat, lon };
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true }));
 
-    const flights = await fetchFlights();
+    const { lat, lon } = cameraRef.current;
+    const result = await fetchADSBFlights(lat, lon);
+
     const map = new Map<string, Aircraft>();
-    for (const a of flights) {
+    for (const a of result.aircraft) {
       map.set(a.icao24, a);
     }
 
@@ -36,7 +44,7 @@ export function useFlightData(enabled = true) {
       count: map.size,
       lastUpdate: Date.now(),
       loading: false,
-      error: flights.length === 0 ? "No data" : null,
+      error: result.error,
     });
   }, [enabled]);
 
@@ -55,5 +63,6 @@ export function useFlightData(enabled = true) {
     ...state,
     aircraftList: Array.from(state.aircraft.values()),
     refresh,
+    updateCamera,
   };
 }

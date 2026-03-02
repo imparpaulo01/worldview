@@ -5,6 +5,7 @@ import {
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
   defined,
+  Math as CesiumMath,
 } from "cesium";
 import { configureCesium, loadGoogleTileset } from "@/lib/cesium-config";
 import { DEFAULT_CAMERA } from "@/lib/constants";
@@ -102,6 +103,26 @@ export function GlobeViewer() {
       viewerRef.current = null;
     };
   }, []);
+
+  // Sync camera center to flight data hook
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+
+    const onMoveEnd = () => {
+      if (viewer.isDestroyed()) return;
+      const carto = viewer.camera.positionCartographic;
+      const lat = CesiumMath.toDegrees(carto.latitude);
+      const lon = CesiumMath.toDegrees(carto.longitude);
+      flightData.updateCamera(lat, lon);
+    };
+
+    viewer.camera.moveEnd.addEventListener(onMoveEnd);
+    return () => {
+      if (!viewer.isDestroyed()) {
+        viewer.camera.moveEnd.removeEventListener(onMoveEnd);
+      }
+    };
+  }, [viewer, flightData.updateCamera]);
 
   // Entity click handler
   useEffect(() => {
