@@ -4,10 +4,11 @@ export interface BriefData {
   flights: number;
   satellites: number;
   earthquakes: { count: number; maxMag: number; locations: string[] };
-  conflicts: { count: number; topRegions: string[] };
+  conflicts: { count: number; topRegions: string[]; topEvents?: string[] };
   weather: { count: number; severeCount: number };
   fires: number;
   ships: number;
+  news?: string[];
 }
 
 export interface BriefResponse {

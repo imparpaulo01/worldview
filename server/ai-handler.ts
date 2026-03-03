@@ -9,63 +9,85 @@ interface BriefRequest {
   flights: number;
   satellites: number;
   earthquakes: { count: number; maxMag: number; locations: string[] };
-  conflicts: { count: number; topRegions: string[] };
+  conflicts: { count: number; topRegions: string[]; topEvents?: string[] };
   weather: { count: number; severeCount: number };
   fires: number;
   ships: number;
+  news?: string[];
 }
 
-const SYSTEM_PROMPT = `You are a concise intelligence analyst producing a situational awareness brief for a geospatial operations dashboard.
+const SYSTEM_PROMPT = `You are a concise intelligence analyst producing a GLOBAL situational awareness brief for a geospatial operations dashboard.
 
 Format your brief in exactly this structure:
-**Priority Alerts** — any critical items (severe weather, large earthquakes, active conflict zones)
-**Regional Activity** — notable patterns across data layers
-**Assessment** — 1-2 sentence operational summary
+**Priority Alerts** — critical items requiring attention: active wars/conflicts, M5+ earthquakes, severe weather, major fires
+**Global Hotspots** — top 3-5 regions of concern with specific details (countries, event types, severity)
+**Monitoring** — notable patterns across air/space/maritime domains
+**Assessment** — 2-3 sentence strategic summary of the global situation
 
 Rules:
-- 150-250 words total, no filler
-- Use numbers from the data provided — never fabricate
-- If a data layer shows zero activity, skip it
-- Prioritize by severity: earthquakes M5+, severe weather, active conflicts first`;
+- 200-350 words total, no filler
+- Use numbers AND specifics from the data — mention countries, event types, magnitudes
+- Cross-reference news headlines with conflict/earthquake data for richer context
+- If a data layer shows zero activity, skip it entirely
+- Prioritize by severity: active wars first, then earthquakes M5+, severe weather, fires
+- Be direct and analytical — this is an intelligence brief, not a weather report`;
 
 function buildUserPrompt(data: BriefRequest): string {
-  const lines: string[] = ["Current dashboard snapshot:"];
+  const lines: string[] = ["Current GLOBAL dashboard snapshot:"];
 
-  lines.push(`- Flights tracked: ${data.flights}`);
-  lines.push(`- Satellites tracked: ${data.satellites}`);
+  lines.push(`\n## Tracked Assets`);
+  lines.push(`- Flights: ${data.flights}`);
+  lines.push(`- Satellites: ${data.satellites}`);
+  lines.push(`- Ships: ${data.ships}`);
 
+  lines.push(`\n## Earthquakes`);
   if (data.earthquakes.count > 0) {
     lines.push(
-      `- Earthquakes: ${data.earthquakes.count} events, max magnitude ${data.earthquakes.maxMag}`,
+      `- ${data.earthquakes.count} events detected, max magnitude ${data.earthquakes.maxMag}`,
     );
     if (data.earthquakes.locations.length > 0) {
-      lines.push(`  Locations: ${data.earthquakes.locations.join(", ")}`);
+      lines.push(`- Notable locations: ${data.earthquakes.locations.join("; ")}`);
     }
   } else {
-    lines.push("- Earthquakes: none detected");
+    lines.push("- None detected in last 24h");
   }
 
+  lines.push(`\n## Conflicts`);
   if (data.conflicts.count > 0) {
-    lines.push(`- Conflict events: ${data.conflicts.count}`);
+    lines.push(`- ${data.conflicts.count} conflict events detected`);
     if (data.conflicts.topRegions.length > 0) {
-      lines.push(`  Top regions: ${data.conflicts.topRegions.join(", ")}`);
+      lines.push(`- Active regions: ${data.conflicts.topRegions.join(", ")}`);
+    }
+    if (data.conflicts.topEvents && data.conflicts.topEvents.length > 0) {
+      lines.push(`- Recent events:`);
+      for (const evt of data.conflicts.topEvents) {
+        lines.push(`  * ${evt}`);
+      }
     }
   } else {
-    lines.push("- Conflict events: none");
+    lines.push("- No conflict events detected");
   }
 
+  lines.push(`\n## Weather`);
   if (data.weather.count > 0) {
     lines.push(
-      `- Weather alerts: ${data.weather.count} total, ${data.weather.severeCount} severe`,
+      `- ${data.weather.count} alerts active, ${data.weather.severeCount} severe/extreme`,
     );
   } else {
-    lines.push("- Weather alerts: none active");
+    lines.push("- No active alerts");
   }
 
-  lines.push(`- Active fires: ${data.fires}`);
-  lines.push(`- Ships tracked: ${data.ships}`);
+  lines.push(`\n## Fires`);
+  lines.push(`- ${data.fires} active hotspots`);
 
-  lines.push("\nProduce the situational brief now.");
+  if (data.news && data.news.length > 0) {
+    lines.push(`\n## Top News Headlines`);
+    for (const headline of data.news) {
+      lines.push(`- ${headline}`);
+    }
+  }
+
+  lines.push("\nProduce the global situational brief now.");
   return lines.join("\n");
 }
 

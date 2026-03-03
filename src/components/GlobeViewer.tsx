@@ -70,13 +70,16 @@ export function GlobeViewer() {
   });
 
   const { mode: filterMode, setMode: setFilterMode } = useFilterMode();
-  const flightData = useFlightData(layers.flights);
-  const satData = useSatelliteData(layers.satellites);
-  const quakeData = useEarthquakeData(layers.earthquakes);
-  const aisData = useAISData(layers.ships);
-  const fireData = useFireData(layers.fires);
-  const weatherData = useWeatherData(layers.weather);
-  const conflictData = useConflictData(layers.conflicts);
+
+  // Always fetch all data — layer toggles only control visual rendering.
+  // This ensures the AI brief and alerts have the full global picture.
+  const flightData = useFlightData(true);
+  const satData = useSatelliteData(true);
+  const quakeData = useEarthquakeData(true);
+  const aisData = useAISData(true);
+  const fireData = useFireData(true);
+  const weatherData = useWeatherData(true);
+  const conflictData = useConflictData(true);
   const newsData = useNewsData(true);
 
   const { alerts, dismiss: dismissAlert } = useAlerts({
@@ -260,11 +263,14 @@ export function GlobeViewer() {
       locations: quakeData.earthquakes
         .filter((q) => q.magnitude >= 5)
         .map((q) => q.place || "Unknown")
-        .slice(0, 3),
+        .slice(0, 5),
     },
     conflicts: {
       count: conflictData.count,
-      topRegions: [...new Set(conflictData.conflicts.map((c) => c.country))].slice(0, 5),
+      topRegions: [...new Set(conflictData.conflicts.map((c) => c.country))].slice(0, 10),
+      topEvents: conflictData.conflicts
+        .slice(0, 10)
+        .map((c) => `${c.country}: ${c.eventType}${c.actor1 ? ` (${c.actor1}${c.actor2 ? ` vs ${c.actor2}` : ""})` : ""}`),
     },
     weather: {
       count: weatherData.count,
@@ -272,6 +278,7 @@ export function GlobeViewer() {
     },
     fires: fireData.count,
     ships: aisData.count,
+    news: newsData.headlines.slice(0, 15).map((h) => h.title),
   };
 
   const feeds = [
