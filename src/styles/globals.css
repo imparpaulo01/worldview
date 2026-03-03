@@ -50,3 +50,14 @@ body,
   width: 100% !important;
   height: 100% !important;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
