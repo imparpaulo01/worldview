@@ -16,6 +16,8 @@ export const API = {
   WEATHER: "/api/weather",
   WEATHER_EU: "/api/weather-eu",
   CONFLICTS: "/api/conflicts",
+  NEWS: "/api/news",
+  AI_BRIEF: "/api/ai/brief",
 } as const;
 
 /** Refresh intervals (ms) */
@@ -27,6 +29,8 @@ export const INTERVALS = {
   FIRES: 1_800_000,       // 30 min
   WEATHER: 600_000,        // 10 min
   CONFLICTS: 900_000,      // 15 min (matches GDELT update cycle)
+  NEWS: 600_000,            // 10 min
+  AI_BRIEF: 900_000,        // 15 min
 } as const;
 
 /** Performance caps */
@@ -57,3 +61,17 @@ export const FILTER_KEYS: Record<string, FilterMode> = {
   "3": "flir",
   "4": "cel",
 };
+
+/** Alert thresholds for intelligence features */
+export const ALERT_THRESHOLDS = {
+  EARTHQUAKE_MIN_MAG: 6.0,
+  CONFLICT_MIN_GOLDSTEIN: -7,
+  WEATHER_SEVERITY: "Extreme",
+  NEWS_KEYWORDS: ["breaking", "attack", "explosion", "missile", "earthquake", "tsunami", "war"],
+} as const;
+
+/** News display limits */
+export const LIMITS_NEWS = {
+  MAX_HEADLINES: 200,
+  MAX_DISPLAY: 50,
+} as const;
