@@ -40,8 +40,9 @@ app.get("/api/celestrak", async (req, res) => {
 });
 
 // CORS proxy routes
-app.get("/api/flights/:path(*)", async (req, res) => {
-  const path = "/" + (req.params.path || "");
+app.get("/api/flights/*splat", async (req, res) => {
+  const parts = (req.params as Record<string, string[]>).splat || [];
+  const path = "/" + parts.join("/");
   const upstream = `https://api.adsb.lol${path}`;
   try {
     const r = await fetch(upstream);
@@ -129,7 +130,7 @@ app.post("/api/ai/brief", async (req, res) => {
 });
 
 // SPA fallback
-app.get("/:path(*)", (_req, res) => {
+app.get("/{*splat}", (_req, res) => {
   res.sendFile(join(import.meta.dirname, "../dist/index.html"));
 });
 
