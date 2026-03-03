@@ -22,6 +22,11 @@ function aisCollectorPlugin(): Plugin {
       const env = loadEnv("development", process.cwd(), "VITE_");
       startCollector(env.VITE_AISSTREAM_API_KEY);
 
+      // Also load non-VITE_ env vars for server-side handlers (AI keys, etc.)
+      const serverEnv = loadEnv("development", process.cwd(), "");
+      if (serverEnv.GROQ_API_KEY) process.env.GROQ_API_KEY = serverEnv.GROQ_API_KEY;
+      if (serverEnv.OPENROUTER_API_KEY) process.env.OPENROUTER_API_KEY = serverEnv.OPENROUTER_API_KEY;
+
       // Register middleware SYNCHRONOUSLY so it runs before Vite's SPA fallback
       server.middlewares.use("/api/ais/vessel", async (req, res) => {
         const mmsi = req.url?.replace(/^\//, "") || "";

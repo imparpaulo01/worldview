@@ -77,7 +77,7 @@ export function AlertToast({ alerts, onDismiss, viewer }: AlertToastProps) {
       style={{
         position: "absolute",
         top: 48,
-        right: 200,
+        right: 320,
         display: "flex",
         flexDirection: "column",
         gap: 6,

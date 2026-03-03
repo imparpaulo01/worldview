@@ -34,7 +34,7 @@ import { StatusBar } from "@/components/hud/StatusBar";
 import { LayerPanel } from "@/components/panels/LayerPanel";
 import type { LayerState } from "@/components/panels/LayerPanel";
 import { FilterPanel } from "@/components/panels/FilterPanel";
-import { SearchPanel } from "@/components/panels/SearchPanel";
+import { CommandPanel } from "@/components/panels/CommandPanel";
 import { FlightDetailPanel } from "@/components/panels/FlightDetailPanel";
 import { SatDetailPanel } from "@/components/panels/SatDetailPanel";
 import { QuakeDetailPanel } from "@/components/panels/QuakeDetailPanel";
@@ -42,8 +42,6 @@ import { ShipDetailPanel } from "@/components/panels/ShipDetailPanel";
 import { FireDetailPanel } from "@/components/panels/FireDetailPanel";
 import { WeatherDetailPanel } from "@/components/panels/WeatherDetailPanel";
 import { ConflictDetailPanel } from "@/components/panels/ConflictDetailPanel";
-import { NewsFeedPanel } from "@/components/panels/NewsFeedPanel";
-import { AIBriefPanel } from "@/components/panels/AIBriefPanel";
 import { AlertToast } from "@/components/alerts/AlertToast";
 import type { Aircraft } from "@/types/opensky";
 import type { Satellite } from "@/types/celestrak";
@@ -345,10 +343,14 @@ export function GlobeViewer() {
         {/* Panels */}
         <LayerPanel layers={layers} onToggle={toggleLayer} />
         <FilterPanel mode={filterMode} onChange={setFilterMode} />
-        <SearchPanel
+        <CommandPanel
           viewer={viewer}
           aircraft={flightData.aircraftList}
           satellites={satData.satellites}
+          headlines={newsData.headlines}
+          newsCount={newsData.count}
+          newsLoading={newsData.loading}
+          dataSummary={aiDataSummary}
         />
 
         {/* Detail panels */}
@@ -381,14 +383,6 @@ export function GlobeViewer() {
           onClose={() => setSelectedConflict(null)}
         />
 
-        {/* Intelligence panels */}
-        <NewsFeedPanel
-          headlines={newsData.headlines}
-          count={newsData.count}
-          loading={newsData.loading}
-          viewer={viewer}
-        />
-        <AIBriefPanel dataSummary={aiDataSummary} />
         <AlertToast alerts={alerts} onDismiss={dismissAlert} viewer={viewer} />
       </div>
 
