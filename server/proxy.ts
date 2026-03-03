@@ -25,6 +25,20 @@ startRSSCollector();
 app.use(express.static(join(import.meta.dirname, "../dist")));
 app.use(express.json());
 
+// CelesTrak satellite data
+app.get("/api/celestrak", async (req, res) => {
+  const query = new URL(req.url, "http://localhost").searchParams;
+  const params = new URLSearchParams();
+  for (const [k, v] of query) params.set(k, v);
+  try {
+    const r = await fetch(`https://celestrak.org/NORAD/elements/gp.php?${params}`);
+    const text = await r.text();
+    res.status(r.status).type(r.headers.get("content-type") || "text/plain").send(text);
+  } catch {
+    res.status(502).json({ error: "upstream failed" });
+  }
+});
+
 // CORS proxy routes
 app.get("/api/flights/*", async (req, res) => {
   const path = req.path.replace("/api/flights", "");
@@ -48,9 +62,12 @@ app.get("/api/quakes", async (_req, res) => {
 
 app.get("/api/fires", async (_req, res) => {
   const key = process.env.NASA_FIRMS_API_KEY;
-  if (!key) return res.status(503).json({ error: "FIRMS API key not configured" });
+  // Use API key if available, otherwise fall back to public CSV
+  const url = key
+    ? `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/VIIRS_SNPP_NRT/world/1`
+    : "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv";
   try {
-    const r = await fetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/VIIRS_SNPP_NRT/world/1`);
+    const r = await fetch(url);
     res.status(r.status).send(await r.text());
   } catch {
     res.status(502).json({ error: "upstream failed" });
