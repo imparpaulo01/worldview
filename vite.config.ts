@@ -6,6 +6,7 @@ import { resolve } from "path";
 import { startCollector, getVessels, getSource } from "./server/ais-collector.ts";
 import { startConflictCollector, getConflicts } from "./server/gdelt-collector.ts";
 import { startMeteoAlarmCollector, getMeteoAlerts } from "./server/meteoalarm-collector.ts";
+import { startRSSCollector, getNews } from "./server/rss-collector.ts";
 
 /**
  * Vite plugin: AIS data collector.
@@ -67,6 +68,15 @@ function aisCollectorPlugin(): Plugin {
         const alerts = getMeteoAlerts();
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(alerts));
+      });
+
+      // Start RSS news collector
+      startRSSCollector();
+
+      server.middlewares.use("/api/news", (_req, res) => {
+        const news = getNews();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(news));
       });
     },
   };

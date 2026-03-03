@@ -3,6 +3,8 @@ import { join } from "path";
 import { startCollector, getVessels, getSource } from "./ais-collector.ts";
 import { startConflictCollector, getConflicts } from "./gdelt-collector.ts";
 import { startMeteoAlarmCollector, getMeteoAlerts } from "./meteoalarm-collector.ts";
+import { startRSSCollector, getNews } from "./rss-collector.ts";
+import { generateBrief } from "./ai-handler.ts";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -16,8 +18,12 @@ startConflictCollector();
 // Start MeteoAlarm European weather collector
 startMeteoAlarmCollector();
 
+// Start RSS news collector
+startRSSCollector();
+
 // Serve static build
 app.use(express.static(join(import.meta.dirname, "../dist")));
+app.use(express.json());
 
 // CORS proxy routes
 app.get("/api/flights/*", async (req, res) => {
@@ -88,6 +94,21 @@ app.get("/api/conflicts", (_req, res) => {
 // MeteoAlarm European weather alerts (from collector)
 app.get("/api/weather-eu", (_req, res) => {
   res.json(getMeteoAlerts());
+});
+
+// RSS news headlines (from collector)
+app.get("/api/news", (_req, res) => {
+  res.json(getNews());
+});
+
+// AI situational brief (Groq primary, OpenRouter fallback)
+app.post("/api/ai/brief", async (req, res) => {
+  try {
+    const brief = await generateBrief(req.body);
+    res.json({ brief, timestamp: new Date().toISOString() });
+  } catch {
+    res.status(500).json({ error: "Brief generation failed" });
+  }
 });
 
 // SPA fallback
