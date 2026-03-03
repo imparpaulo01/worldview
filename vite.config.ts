@@ -7,6 +7,7 @@ import { startCollector, getVessels, getSource } from "./server/ais-collector.ts
 import { startConflictCollector, getConflicts } from "./server/gdelt-collector.ts";
 import { startMeteoAlarmCollector, getMeteoAlerts } from "./server/meteoalarm-collector.ts";
 import { startRSSCollector, getNews } from "./server/rss-collector.ts";
+import { generateBrief } from "./server/ai-handler.ts";
 
 /**
  * Vite plugin: AIS data collector.
@@ -77,6 +78,32 @@ function aisCollectorPlugin(): Plugin {
         const news = getNews();
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(news));
+      });
+
+      // AI situational brief (Groq primary, OpenRouter fallback)
+      server.middlewares.use("/api/ai/brief", async (req, res) => {
+        if (req.method !== "POST") {
+          res.writeHead(405);
+          res.end(JSON.stringify({ error: "POST only" }));
+          return;
+        }
+        let body = "";
+        req.on("data", (chunk: Buffer) => {
+          body += chunk.toString();
+        });
+        req.on("end", async () => {
+          try {
+            const data = JSON.parse(body);
+            const brief = await generateBrief(data);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({ brief, timestamp: new Date().toISOString() }),
+            );
+          } catch {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: "Brief generation failed" }));
+          }
+        });
       });
     },
   };
