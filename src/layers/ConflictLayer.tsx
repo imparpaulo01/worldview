@@ -29,15 +29,6 @@ function severityToSize(goldstein: number): number {
   return 16 + normalized * 20;
 }
 
-/** Short label for event type */
-const TYPE_ABBREV: Record<string, string> = {
-  "Protest": "PRT",
-  "Coerce": "CRC",
-  "Assault": "AST",
-  "Fight": "FGT",
-  "Mass Violence": "MVL",
-};
-
 export function ConflictLayer({ conflicts, viewer }: ConflictLayerProps) {
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
