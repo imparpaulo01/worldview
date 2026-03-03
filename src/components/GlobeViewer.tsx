@@ -16,6 +16,8 @@ import { useAISData } from "@/hooks/useAISData";
 import { useFireData } from "@/hooks/useFireData";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { useConflictData } from "@/hooks/useConflictData";
+import { useNewsData } from "@/hooks/useNewsData";
+import { useAlerts } from "@/hooks/useAlerts";
 import { useFilterMode } from "@/hooks/useFilterMode";
 import { FilterPipeline } from "@/filters/FilterPipeline";
 import { FlightLayer } from "@/layers/FlightLayer";
@@ -40,6 +42,9 @@ import { ShipDetailPanel } from "@/components/panels/ShipDetailPanel";
 import { FireDetailPanel } from "@/components/panels/FireDetailPanel";
 import { WeatherDetailPanel } from "@/components/panels/WeatherDetailPanel";
 import { ConflictDetailPanel } from "@/components/panels/ConflictDetailPanel";
+import { NewsFeedPanel } from "@/components/panels/NewsFeedPanel";
+import { AIBriefPanel } from "@/components/panels/AIBriefPanel";
+import { AlertToast } from "@/components/alerts/AlertToast";
 import type { Aircraft } from "@/types/opensky";
 import type { Satellite } from "@/types/celestrak";
 import type { Earthquake } from "@/types/usgs";
@@ -74,6 +79,14 @@ export function GlobeViewer() {
   const fireData = useFireData(layers.fires);
   const weatherData = useWeatherData(layers.weather);
   const conflictData = useConflictData(layers.conflicts);
+  const newsData = useNewsData(true);
+
+  const { alerts, dismiss: dismissAlert } = useAlerts({
+    earthquakes: quakeData.earthquakes,
+    conflicts: conflictData.conflicts,
+    weatherAlerts: weatherData.alerts,
+    news: newsData.headlines,
+  });
 
   const [selectedFlight, setSelectedFlight] = useState<Aircraft | null>(null);
   const [selectedSat, setSelectedSat] = useState<Satellite | null>(null);
@@ -240,6 +253,29 @@ export function GlobeViewer() {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
   }, []);
 
+  const aiDataSummary = {
+    flights: flightData.count,
+    satellites: satData.count,
+    earthquakes: {
+      count: quakeData.count,
+      maxMag: quakeData.earthquakes.reduce((max, q) => Math.max(max, q.magnitude), 0),
+      locations: quakeData.earthquakes
+        .filter((q) => q.magnitude >= 5)
+        .map((q) => q.place || "Unknown")
+        .slice(0, 3),
+    },
+    conflicts: {
+      count: conflictData.count,
+      topRegions: [...new Set(conflictData.conflicts.map((c) => c.country))].slice(0, 5),
+    },
+    weather: {
+      count: weatherData.count,
+      severeCount: weatherData.alerts.filter((a) => a.severity === "Extreme" || a.severity === "Severe").length,
+    },
+    fires: fireData.count,
+    ships: aisData.count,
+  };
+
   const feeds = [
     { label: "FLIGHTS", active: flightData.count > 0, error: !!flightData.error },
     { label: "SATS", active: satData.count > 0, error: !!satData.error },
@@ -248,6 +284,7 @@ export function GlobeViewer() {
     { label: "FIRES", active: fireData.count > 0, error: !!fireData.error },
     { label: "WX", active: weatherData.count > 0, error: false },
     { label: "CONFLICTS", active: conflictData.count > 0, error: !!conflictData.error },
+    { label: "NEWS", active: newsData.count > 0, error: !!newsData.error },
   ];
 
   const hasDetailOpen = selectedFlight || selectedSat || selectedQuake || selectedShip || selectedFire || selectedAlert || selectedConflict;
@@ -343,6 +380,16 @@ export function GlobeViewer() {
           conflict={selectedConflict}
           onClose={() => setSelectedConflict(null)}
         />
+
+        {/* Intelligence panels */}
+        <NewsFeedPanel
+          headlines={newsData.headlines}
+          count={newsData.count}
+          loading={newsData.loading}
+          viewer={viewer}
+        />
+        <AIBriefPanel dataSummary={aiDataSummary} />
+        <AlertToast alerts={alerts} onDismiss={dismissAlert} viewer={viewer} />
       </div>
 
       {/* Keyboard shortcut hints */}
